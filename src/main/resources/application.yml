@@ -1,0 +1,13 @@
+# Server
+server:
+    port: 18001
+
+# dingtalk
+dingtalk:
+  webhook:
+
+# api key
+api:
+  key:
+    id:
+    secret:
