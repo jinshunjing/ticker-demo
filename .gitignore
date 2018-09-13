@@ -35,6 +35,10 @@ out/
 # bin
 bin/
 
+# app
+src/main/java/resources/application.yml
+src/main/java/org/jim/ticker/config/ServiceConfig.java
+
 # mpeltonen/sbt-idea plugin
 .idea_modules/
 
