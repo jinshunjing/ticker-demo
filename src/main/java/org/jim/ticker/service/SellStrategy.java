@@ -3,22 +3,26 @@ package org.jim.ticker.service;
 import lombok.extern.slf4j.Slf4j;
 import org.jim.ticker.model.Order;
 
+import java.math.BigDecimal;
+
 @Slf4j
 public class SellStrategy extends AbstractStrategy {
 
     private double minimum;
     private double profit;
+    private double maximum;
 
     private int window;
     private double change;
 
     public SellStrategy(String symbol, String accountId, double benchmark,
-                        double increase, double decrease,
+                        double minimum, double profit, double maximum,
                         int window, double change) {
         super(symbol, accountId, benchmark);
 
-        this.minimum = benchmark * (1.0 - decrease);
-        this.profit = benchmark * (1 + increase);
+        this.minimum = minimum;
+        this.profit = profit;
+        this.maximum = maximum;
 
         this.window = window;
         this.change = change;
@@ -26,32 +30,33 @@ public class SellStrategy extends AbstractStrategy {
 
     @Override
     public void strategy(double currPrice) {
-        int action = this.estimate(currPrice);
-        if (0 == action) {
+        // no coin
+        if (coinBalance.doubleValue() < 10.0) {
             return;
         }
 
-        Order order = new Order();
-        order.symbol = symbol;
-        order.accountId = accountId;
-        order.type = "sell-limit";
-        order.amount = coinBalance.toString();
-        order.price = Double.toString(currPrice);
+        String sellPrice = this.estimate(currPrice);
+        if (null == sellPrice) {
+            return;
+        }
 
-        String payload = com.alibaba.fastjson.JSON.toJSONString(order);
-        dingtalkRobot.notify(payload);
-        this.placeOrder(order);
+        this.sell(sellPrice);
     }
 
-    public int estimate(double currPrice) {
+    public String estimate(double currPrice) {
         int size = priceList.size();
         if (window >= size) {
-            return 0;
+            return null;
         }
 
         // SELL if price below minimum
         if (currPrice <= minimum) {
-            return 1;
+            return Double.toString(minimum);
+        }
+
+        // SELL if price above maximum
+        if (currPrice >= maximum) {
+            return Double.toString(currPrice);
         }
 
         double high = 0.0;
@@ -62,18 +67,38 @@ public class SellStrategy extends AbstractStrategy {
             }
         }
 
-        // do not sell if there is no profit
+        /// do not sell if there is no profit
         if (high < profit) {
-            return 0;
+            return null;
         }
 
         // SELL if price decreased too much within N minutes
         double ratio = (high - currPrice) / high;
         if (ratio >= change) {
-            return 1;
+            return Double.toString(currPrice);
         }
 
-        return 0;
+        return null;
+    }
+
+    public void sell(String sellPrice) {
+        // update balance
+        super.balance();
+
+        // place order
+        Order order = new Order();
+        order.symbol = symbol;
+        order.accountId = accountId;
+        order.type = "sell-limit";
+        order.amount = coinBalance.toString();
+        order.price = sellPrice;
+        this.placeOrder(order);
+
+        String payload = com.alibaba.fastjson.JSON.toJSONString(order);
+        dingtalkRobot.notify(payload);
+
+        // reset balance
+        coinBalance = BigDecimal.ZERO;
     }
 
 }

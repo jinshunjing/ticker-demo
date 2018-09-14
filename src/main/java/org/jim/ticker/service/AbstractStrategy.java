@@ -27,6 +27,7 @@ public abstract class AbstractStrategy {
 
     protected double benchmark;
     protected List<Double> priceList;
+    protected int priceListMaxSize;
 
 
     public AbstractStrategy(String symbol, String accountId, double benchmark) {
@@ -39,6 +40,7 @@ public abstract class AbstractStrategy {
         this.benchmark = benchmark;
 
         priceList = new ArrayList<>();
+        priceListMaxSize = 4 * 60 * 24;
     }
 
     public abstract void strategy(double price);
@@ -92,6 +94,9 @@ public abstract class AbstractStrategy {
         String resp = hbgClient.get("/market/trade", map);
         double price = this.parsePrice(resp);
 
+        if (priceListMaxSize <= priceList.size()) {
+            priceList.clear();
+        }
         priceList.add(price);
 
         this.strategy(price);
